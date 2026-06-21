@@ -1,0 +1,15 @@
+# Compile artifacts
+*.exe
+*.obj
+*.o
+*.pdb
+*.ilk
+*.suo
+
+# IDE folders
+.vs/
+.idea/
+.vscode/
+
+# Temp logs
+*.log
