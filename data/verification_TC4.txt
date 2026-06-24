@@ -1,0 +1,40 @@
+=== VERIFICATION LOG FOR TC4 ===
+
+--- SEQUENTIAL RUN ---
+Command: .\seq_align.exe 7777 7777 42
+Return Code: 0
+Output:
+=== Sequential Smith-Waterman Baseline ===
+Sequence 1 length: 7777
+Sequence 2 length: 7777
+Random Seed: 42
+Running Sequential Smith-Waterman...
+--------------------------------------
+Max Alignment Score: 5635
+Execution Time: 845.926 ms
+--------------------------------------
+
+
+--- PARALLEL MPI RUN (3 RANKS) ---
+Command: C:\Program Files\Microsoft MPI\Bin\mpiexec.exe -n 3 .\mpi_align.exe 7777 7777 42 128
+Return Code: 0
+Output:
+MPI Parallel Smith-Waterman (Block-based Wavefront)
+Number of MPI processes: 3
+Sequence 1 length: 7777
+Sequence 2 length: 7777
+Random Seed: 42
+Block Size: 128
+--------------------------------------
+--------------------------------------
+Global Max Alignment Score: 5635
+Parallel Execution Time: 643.154 ms
+--------------------------------------
+
+[Per-Rank Timing Breakdown]
+Rank | Comp Time (ms) | Total Time (ms) | Comm/Idle (ms)
+-----|----------------|-----------------|---------------
+   0 |         523.04 |          643.15 |        120.12
+   1 |         547.95 |          642.28 |         94.33
+   2 |         551.22 |          642.60 |         91.38
+

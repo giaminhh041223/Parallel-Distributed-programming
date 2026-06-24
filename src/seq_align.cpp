@@ -126,6 +126,100 @@ int smith_waterman_sequential(const std::string& seq1, const std::string& seq2) 
     return max_score;
 }
 
+struct AlignmentResult {
+    int max_score;
+    std::string align1;
+    std::string align2;
+    int max_i, max_j;
+};
+
+// Smith-Waterman dynamic programming with Traceback reconstruction
+AlignmentResult smith_waterman_traceback(const std::string& seq1, const std::string& seq2) {
+    const int len1 = static_cast<int>(seq1.length());
+    const int len2 = static_cast<int>(seq2.length());
+
+    // Prevent stack overflow by allocating on the heap
+    size_t matrix_size = static_cast<size_t>(len1 + 1) * (len2 + 1);
+
+    // Memory protection limit: ~400 million elements (~1.6 GB RAM)
+    // If exceeded, fall back to score-only single-row calculation
+    if (matrix_size > 400000000ULL) {
+        std::cout << "[Cảnh báo] Kích thước chuỗi lớn. Tự động chuyển sang chế độ Score-only để bảo vệ RAM." << std::endl;
+        int score = smith_waterman_sequential(seq1, seq2);
+        return {score, "N/A (Chuỗi quá dài)", "N/A (Chuỗi quá dài)", -1, -1};
+    }
+
+    int* H = new int[matrix_size]();
+    int max_score = 0;
+    int max_i = 0, max_j = 0;
+
+    // 1. Fill DP matrix
+    for (int i = 1; i <= len1; ++i) {
+        const char c1 = seq1[i - 1];
+        const size_t row_offset = static_cast<size_t>(i) * (len2 + 1);
+        const size_t prev_row_offset = static_cast<size_t>(i - 1) * (len2 + 1);
+
+        for (int j = 1; j <= len2; ++j) {
+            const char c2 = seq2[j - 1];
+
+            int score_diag = H[prev_row_offset + (j - 1)] + (c1 == c2 ? MATCH : MISMATCH);
+            int score_up   = H[prev_row_offset + j] + GAP;
+            int score_left = H[row_offset + (j - 1)] + GAP;
+
+            int score = std::max({score_diag, score_up, score_left, 0});
+            H[row_offset + j] = score;
+
+            if (score > max_score) {
+                max_score = score;
+                max_i = i;
+                max_j = j;
+            }
+        }
+    }
+
+    // 2. Backtrack to find alignment path
+    std::string align1 = "";
+    std::string align2 = "";
+    int curr_i = max_i;
+    int curr_j = max_j;
+
+    while (curr_i > 0 && curr_j > 0) {
+        size_t idx = static_cast<size_t>(curr_i) * (len2 + 1) + curr_j;
+        int score = H[idx];
+        if (score == 0) break; // Stop at local score 0 threshold
+
+        char c1 = seq1[curr_i - 1];
+        char c2 = seq2[curr_j - 1];
+
+        int score_diag = H[static_cast<size_t>(curr_i - 1) * (len2 + 1) + (curr_j - 1)];
+        int score_up   = H[static_cast<size_t>(curr_i - 1) * (len2 + 1) + curr_j];
+        int score_left = H[static_cast<size_t>(curr_i) * (len2 + 1) + (curr_j - 1)];
+
+        if (score == score_diag + (c1 == c2 ? MATCH : MISMATCH)) {
+            align1.push_back(c1);
+            align2.push_back(c2);
+            curr_i--;
+            curr_j--;
+        } else if (score == score_up + GAP) {
+            align1.push_back(c1);
+            align2.push_back('-');
+            curr_i--;
+        } else if (score == score_left + GAP) {
+            align1.push_back('-');
+            align2.push_back(c2);
+            curr_j--;
+        } else {
+            break;
+        }
+    }
+
+    std::reverse(align1.begin(), align1.end());
+    std::reverse(align2.begin(), align2.end());
+
+    delete[] H;
+    return {max_score, align1, align2, max_i, max_j};
+}
+
 int main(int argc, char* argv[]) {
     int len1 = 10000;
     int len2 = 10000;
@@ -167,13 +261,23 @@ int main(int argc, char* argv[]) {
     std::cout << "Running Sequential Smith-Waterman..." << std::endl;
 
     auto t0 = std::chrono::high_resolution_clock::now();
-    int max_score = smith_waterman_sequential(seq1, seq2);
+    AlignmentResult result = smith_waterman_traceback(seq1, seq2);
     auto t1 = std::chrono::high_resolution_clock::now();
 
     double elapsed_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
 
     std::cout << "--------------------------------------" << std::endl;
-    std::cout << "Max Alignment Score: " << max_score << std::endl;
+    std::cout << "Max Alignment Score: " << result.max_score << std::endl;
+    if (result.max_i != -1) {
+        std::cout << "Alignment Ends at Matrix Coordinate: (" << result.max_i << ", " << result.max_j << ")" << std::endl;
+        if (result.align1 != "N/A (Chuỗi quá dài)") {
+            std::cout << "Reconstructed Alignment Path (First 100 bp or full):" << std::endl;
+            size_t print_len = std::min(result.align1.length(), static_cast<size_t>(100));
+            std::cout << "  Seq1 (Query): " << result.align1.substr(0, print_len) << (result.align1.length() > 100 ? "..." : "") << std::endl;
+            std::cout << "  Seq2 (Db)   : " << result.align2.substr(0, print_len) << (result.align2.length() > 100 ? "..." : "") << std::endl;
+            std::cout << "  Alignment Length: " << result.align1.length() << " bp" << std::endl;
+        }
+    }
     std::cout << "Execution Time: " << elapsed_ms << " ms" << std::endl;
     std::cout << "--------------------------------------" << std::endl;
 

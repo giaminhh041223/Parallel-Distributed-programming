@@ -25,7 +25,7 @@
  *   6. Branchless scoring via std::max.
  *   7. Cross-platform memory prefetching for next row of H_local.
  *   8. RAII memory management via std::vector for H_local and recv_pool.
- *   9. Tag calculation uses % 32768 to match MPI standard tag limits.
+ *   9. Tag calculation uses (r * N_b + c) % 32767 to prevent tag collision and match MPI standard limits.
  *  10. Removed redundant MPI_Barrier before final MPI_Wtime().
  *
  * Scoring: Match = +3, Mismatch = -3, Gap = -2
@@ -273,7 +273,7 @@ int main(int argc, char* argv[]) {
                         blk.recv_slot = recv_slot;
                         int* rbuf = recv_pool + recv_slot * (block_size + 1);
                         int left_rank = (rank - 1 + nprocs) % nprocs;
-                        int tag = r % 32768;
+                        int tag = (r * N_b + c) % 32767;
                         MPI_Request req;
                         MPI_Irecv(rbuf, blk.h + 1, MPI_INT,
                                   left_rank, tag, MPI_COMM_WORLD, &req);
@@ -399,7 +399,7 @@ int main(int argc, char* argv[]) {
                 }
 
                 int right_rank = (rank + 1) % nprocs;
-                int tag = r % 32768;
+                int tag = (r * N_b + c + 1) % 32767;
                 MPI_Isend(&send_bufs[cl][0], h + 1, MPI_INT,
                           right_rank, tag, MPI_COMM_WORLD, &send_reqs[cl]);
             }

@@ -1,0 +1,44 @@
+=== VERIFICATION LOG FOR TC5 ===
+
+--- SEQUENTIAL RUN ---
+Command: .\seq_align.exe data\sars_cov_2.fasta data\mers_cov.fasta
+Return Code: 0
+Output:
+=== Sequential Smith-Waterman Baseline ===
+FASTA File Mode Enabled.
+Loading file 1: data\sars_cov_2.fasta
+Loading file 2: data\mers_cov.fasta
+Sequence 1 length: 29903 bp
+Sequence 2 length: 30119 bp
+Running Sequential Smith-Waterman...
+--------------------------------------
+Max Alignment Score: 30789
+Execution Time: 21370.5 ms
+--------------------------------------
+
+
+--- PARALLEL MPI RUN (3 RANKS) ---
+Command: C:\Program Files\Microsoft MPI\Bin\mpiexec.exe -n 3 .\mpi_align.exe data\sars_cov_2.fasta data\mers_cov.fasta 128
+Return Code: 0
+Output:
+MPI Parallel Smith-Waterman (Block-based Wavefront)
+Number of MPI processes: 3
+FASTA File Mode Enabled.
+Loading file 1: data\sars_cov_2.fasta
+Loading file 2: data\mers_cov.fasta
+Sequence 1 length: 29903 bp
+Sequence 2 length: 30119 bp
+Block Size: 128
+--------------------------------------
+--------------------------------------
+Global Max Alignment Score: 30789
+Parallel Execution Time: 9357 ms
+--------------------------------------
+
+[Per-Rank Timing Breakdown]
+Rank | Comp Time (ms) | Total Time (ms) | Comm/Idle (ms)
+-----|----------------|-----------------|---------------
+   0 |        7452.76 |         9357.00 |       1904.25
+   1 |        7575.10 |         9356.92 |       1781.81
+   2 |        7577.95 |         9356.11 |       1778.16
+
